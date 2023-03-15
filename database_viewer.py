@@ -1,5 +1,9 @@
-from sqlalchemy import create_engine
+# database_viewer.py
+
+# from sqlalchemy import create_engine
 import pandas as pd
+from sqlalchemy import create_engine
+
 from database_creation import StaffTable, ObservationsTable
 from sqlalchemy.orm import sessionmaker
 
@@ -17,7 +21,7 @@ def display_staff():
     staff_data = pd.read_sql_query(session.query(StaffTable).statement, conn)
 
     # Display the staff data in a tabular format
-    print(staff_data)
+    print(staff_data.to_string(index=False))
 
 
 def display_patients():

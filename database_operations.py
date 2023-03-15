@@ -72,8 +72,9 @@ def update_staff():
         obs_assign = input("Enter any key to assign for obs (press enter for no obs): ")
         staff.assigned = bool(obs_assign) or staff.assigned is False
 
-        st = input("Enter staff start time (HH:MM) (press enter for a full shift): ")
-        et = input("Enter staff end time (HH:MM) (press enter for a full shift): ")
+        st = input("Enter staff start time (HH:MM) (press enter if LD or N shift): ")
+        et = input("Enter staff end time (HH:MM) (press enter if LD or N shift): ")
+
         day_converter = {'08:00': 0,
                          '09:00': 1,
                          '10:00': 2,
@@ -110,7 +111,47 @@ def update_staff():
             staff.start_time = 0
             staff.end_time = 12
         staff.duration = staff.end_time - staff.start_time
+        # Prompt user to enter the times to add or remove from an exclude times list which will then be created
+        times = input("Enter times to omit staff from observations (press enter to keep existing status): ").split()
+        # If times are provided
+        for time in times:
+            if time:
+                # If the time is already in the omit time list, remove it
+                if int(time) in staff.omit_time:
+                    staff.omit_time.remove(time)
+                    click.echo(f"Time {time} removed from omits time list for staff {staff.name}.")
+                else:
+                    # Otherwise, add the time to the omit time list
+                    staff.omit_time.append(int(time))
+                    click.echo(f"Time {time} added to omit time list for staff {staff.name}.")
 
+                session.commit()  # Save the changes to the database
+            else:
+                click.echo("No time provided.")
+                staff.omit_time = []
+
+        # Prompt user to enter the patient ID to add or remove from the staff's cherry-pick list
+        patient_id = input(
+            "Enter patient ID to add or remove from staff's cherry_pick list (press enter to keep existing status): ")
+        # If the patient ID is provided
+        if patient_id:
+            # Retrieve the patient with the given ID from the database
+            patient = session.query(ObservationsTable).filter_by(id=patient_id).first()
+
+            # If the patient is found in the database
+            if patient:
+                # If the patient name is already in the cherry-pick list, remove it
+                if patient.name in staff.cherry_pick:
+                    staff.cherry_pick.remove(patient.name)
+                    click.echo(f"Patient {patient.name} removed from cherry-list for staff {staff.name}.")
+                else:
+                    # Otherwise, add the patient name to the omit list
+                    staff.cherry_pick.append(patient.name)
+                    click.echo(f"Patient {patient.name} added to cherry-pick list for staff {staff.name}.")
+
+                session.commit()  # Save the changes to the database
+            else:
+                click.echo("Patient not found.")
         session.commit()
         click.echo("Staff updated successfully.")
     else:
@@ -183,6 +224,10 @@ def delete_patient():
     patient = session.query(ObservationsTable).filter_by(id=patient_id).first()
 
     if patient is not None:
+        # Remove the patient name from the cherry-pick list of all staff members
+        for staff in session.query(StaffTable).all():
+            if patient.name in staff.cherry_pick:
+                staff.cherry_pick.remove(patient.name)
         session.delete(patient)
         session.commit()
         click.echo("Patient deleted successfully.")
@@ -192,16 +237,24 @@ def delete_patient():
 
 @click.command()
 def assign_on_obs():
-    staff_id = input("Enter staff ID to assign on obs: ")
-    staff = session.query(StaffTable).filter_by(id=staff_id).first()
+    staff_id = input("Enter staff ID to assign on obs: ").split()
+    staff = [session.query(StaffTable).filter_by(id=staff_id).first() for staff_id in staff_id]
 
-    if staff is not None:
-        obs_assign = input(f"Enter any key to assign to obs (press enter to keep existing status): ")
-        staff.assigned = bool(obs_assign) or staff.assigned
-        session.commit()
-        click.echo(f"{staff.name} assigned to obs successfully.")
-    else:
-        click.echo("Staff not found.")
+    for staff in staff:
+        if staff is not None:
+            staff.assigned = True
+            session.commit()
+            click.echo(f"{staff.name} assigned to obs successfully")
+        else:
+            click.echo("Staff not found.")
+
+    # if staff is not None:
+    #     obs_assign = input(f"Enter any key to assign to obs (press enter to keep existing status): ")
+    #     staff.assigned = bool(obs_assign) or staff.assigned
+    #     session.commit()
+    #     click.echo(f"{staff.name} assigned to obs successfully.")
+    # else:
+    #     click.echo("Staff not found.")
 
 
 @click.command()

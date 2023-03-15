@@ -1,3 +1,5 @@
+# milo_solve.py
+
 import pulp
 from milo_input_data import get_staff_rows_as_dict, get_patient_rows_as_dict
 from result_viewer import print_results
@@ -59,7 +61,7 @@ for o in observations:
                 problem += assignments[(s["id"], o["id"],
                                         t)] == 0, f"Gender Constraint (observation {o['id']}, staff {s['id']}, time {t}) Constraint"
 
-# Ignore staff with assigned=False
+# Ignore staff if assigned==False
 for s in staff:
     if not s["assigned"]:
         for t in range(12):
@@ -75,6 +77,39 @@ for s in staff:
                 problem += assignments[(s["id"], o["id"],
                                         t)] == 0, f"Staff_Time_Availability_(staff_{s['id']},_observation_{o['id']},_time_{t})_Constraint"
 
+# Ensure staff are not assigned at specific times
+for s in staff:
+    if 'omit_time' in s:
+        for t in s['omit_time']:
+            for o in observations:
+                problem += assignments[(s["id"], o["id"],
+                                        t)] == 0, f"Omit Time (staff {s['id']}, observation {o['id']}, time {t}) Constraint"
+
+# Names in omit_staff must not be assigned any time for that patient
+for o in observations:
+    for s in staff:
+        if s["id"] in o["omit_staff"]:
+            for t in range(12):
+                problem += assignments[(
+                    s["id"], o["id"],
+                    t)] == 0, f"Omit Staff (observation {o['id']}, staff {s['id']}, time {t}) Constraint"
+
+# Ensure staff are only assigned to a specific patient(s)
+for s in staff:
+    for o in observations:
+        if o["id"] in s["cherry_pick"]:
+            for t in range(12):
+                problem += assignments[(s["id"], o["id"],
+                                        t)] == 0, f"Cherry Pick Constraint (staff {s['id']}, observation {o['id']}, time {t}) Constraint"
+
+# Ensure staff are assigned to no more than one patient at a time
+for t in range(12):
+    for s in staff:
+        # Create a list of patients assigned to the current staff at the current time
+        assigned_patients = [assignments[(s["id"], o["id"], t)] for o in observations]
+        # Add a constraint that the sum of the assigned_patients list must be less than or equal to 1
+        problem += pulp.lpSum(assigned_patients) <= 1, f"Staff Row Constraint (staff {s['id']}, time {t}) Constraint"
+
 # Ensure each staff member is not assigned to an observation for more than 2 consecutive hours
 for s in staff:
     for t in range(11):
@@ -83,10 +118,10 @@ for s in staff:
                                    range(max(0, t - 1),
                                          t + 2)]) <= 2, f"Consecutive Hours (staff {s['id']}, time {t}) Constraint"
 
-# Staff whose duration is < 12 must have >= 1 unassigned time slot between their start_time + 4 and end_time
+# Staff whose duration is < 12 must have >= 1 unassigned time slot between their start_time + 3 and end_time
 for s in staff:
     if s["duration"] < 12:
-        for t in range(s["start_time"] + 4, s["end_time"]):
+        for t in range(s["start_time"] + 3, s["end_time"]):
             problem += pulp.lpSum([assignments[(s["id"], o["id"], t_prime)] for o in observations for t_prime in
                                    range(t - 1, t + 1)]) <= 1, f"Minimum Break (staff {s['id']}, time {t}) Constraint"
 

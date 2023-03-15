@@ -1,3 +1,5 @@
+# milo_input_data.py
+
 from database_creation import StaffTable, ObservationsTable, engine, Base, sessionmaker
 
 # Create a session factory
@@ -5,6 +7,7 @@ Session = sessionmaker(bind=engine)
 
 # Create the tables if they don't exist
 Base.metadata.create_all(engine)
+
 
 def get_staff_rows_as_dict():
     # Create a session object
@@ -16,6 +19,7 @@ def get_staff_rows_as_dict():
     session.close()
     return staff_rows_as_dict
 
+
 def get_patient_rows_as_dict():
     # Create a session object
     session = Session()
@@ -26,14 +30,15 @@ def get_patient_rows_as_dict():
     session.close()
     return patient_rows_as_dict
 
+
 # Print the dictionaries of each row in the StaffTable
-# staff_rows_as_dict = get_staff_rows_as_dict()
-# print('\nStaff')
-# for staff_row in staff_rows_as_dict:
-#     print(staff_row)
+staff_rows_as_dict = get_staff_rows_as_dict()
+print('\nStaff')
+for staff_row in staff_rows_as_dict:
+    print(staff_row)
 
 # Print the dictionaries of each row in the ObservationsTable
-# patient_rows_as_dict = get_patient_rows_as_dict()
-# print('\nObservations')
-# for patient_row in patient_rows_as_dict:
-#     print(patient_row)
+patient_rows_as_dict = get_patient_rows_as_dict()
+print('\nObservations')
+for patient_row in patient_rows_as_dict:
+    print(patient_row)

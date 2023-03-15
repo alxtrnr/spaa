@@ -1,9 +1,12 @@
+# main.py
+
 from database_operations import add_patient, add_staff, assign_on_obs, update_patient, update_staff, delete_patient, \
     delete_staff
 from database_viewer import display_patients, display_staff
 
-print('Welcome to the Staff / Patient Allocation App (SPAA)')
-
+print('\nWelcome to the Staff / Patient Allocation App (SPAA)')
+print('====================================================')
+print('Please select an option from the list below: ')
 
 def menu():
     print("""
@@ -45,6 +48,8 @@ def menu():
         assign_on_obs()
     elif choice == '10':
         import milo_solve
+    else:
+        print('Invalid selection')
 
 
 if __name__ == "__main__":

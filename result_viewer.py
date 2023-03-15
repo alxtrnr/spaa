@@ -1,49 +1,68 @@
+# result_viewer.py
+
 import pulp
 from tabulate import tabulate
+import csv
+
+
+def get_staff_assignments(staff, observations, assignments):
+    assignments_dict = {}
+    for o in observations:
+        for t in range(12):
+            staff_assigned = [s["name"] for s in staff if assignments[(s["id"], o["id"], t)].value() == 1]
+            assignments_dict[(o["name"], t)] = staff_assigned
+    return assignments_dict
+
+
+def export_to_csv(data, headers, filename, index=None):
+    with open(filename, "w", newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        if index:
+            writer.writerow([""] + index)
+        for i, row in enumerate(data):
+            if index:
+                writer.writerow([i] + row)
+            else:
+                writer.writerow(row)
+
 
 def print_results(staff, observations, assignments, shift):
-    # Create an empty dictionary to store the staff assignments
-    assignments_dict = {}
+    index = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
+             '19:00'] if shift == 'd' else ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00',
+                                            '04:00', '05:00', '06:00', '07:00']
+    observations_names = [o["name"] for o in observations]
+    assignments_dict = get_staff_assignments(staff, observations, assignments)
+    headers = ["OBS"] + observations_names
+    data = [[", ".join(assignments_dict[(o_name, t)]) for o_name in observations_names] for t in range(12)]
+    filename = "table.csv"
+    export_to_csv(data, headers, filename, index=index)
+    print(tabulate(data, headers=headers, showindex=index, tablefmt="fancy_grid"))
 
-    index = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'] if shift == 'd' else ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00']
+    # Print the assignments
+    schedule = [["OFF" for _ in staff] for _ in range(12)]
+    assignments_count = [0] * len(staff)  # initialize a list to store the number of assignments for each staff member
 
-    # Loop over each observation
-    for o in observations:
-        # Loop over each time slot
-        for t in range(12):
-            # Get the staff assigned to this observation and time slot
-            staff_assigned = [s["name"] for s in staff if assignments[(s["id"], o["id"], t)].value() == 1]
-            # Add the staff assignments to the dictionary
-            assignments_dict[(o["name"], t)] = staff_assigned
-
-    # Create a list of headers for the table
-    headers = ["OBS ==>"] + [o["name"] for o in observations]
-
-    # Create a list of rows for the table
-    rows = []
     for t in range(12):
-        # Create a list of cells for this row
-        row = [", ".join(assignments_dict[(o["name"], t)]) for o in observations]
-        # Add the row to the list of rows
-        rows.append(row)
-
-    # Print the table
-    print(tabulate(rows, headers=headers, showindex=index, tablefmt="fancy_grid"))
-
-    # Get a list of assigned patients for each staff member at each time slot
-    schedule = [["OFF" for s in staff] for t in range(12)]
-    for s in staff:
-        for t in range(12):
+        for i, s in enumerate(staff):
             for o in observations:
                 if assignments[(s["id"], o["id"], t)].value() == 1:
-                    schedule[t][s["id"] - 1] = o["name"]
+                    schedule[t][i] = o["name"]
+                    assignments_count[
+                        i] += 1  # increment the assignment count for the staff member whose column the cell is in
 
-    # Display the schedule
-    print(tabulate(schedule, headers=["STAFF ==>"] + [s["name"] for s in staff], showindex=[t for t in index], tablefmt="fancy_grid"))
+    # Add a row at the bottom of the schedule matrix to display the assignment count for each staff member
+    assignments_row = [str(count) for count in assignments_count]
+    schedule.append(assignments_row)
+    index.append("TOTAL")
+
+    headers = ["TIME"] + [s["name"] for s in staff]
+    print(tabulate(schedule, headers=headers, showindex=index, tablefmt="fancy_grid"))
 
     # Print the assignments
     for s in staff:
+        print(f"\nAllocations for {s['name']}:")
         for o in observations:
             for t in range(12):
                 if assignments[(s["id"], o["id"], t)].value() == 1:
-                    print(f"Staff {s['name']} assigned to Observation {o['name']} at time {t}")
+                    print(f"{s['name']} allocated to {o['name']} at time {t}")
